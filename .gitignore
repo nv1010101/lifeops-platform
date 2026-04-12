@@ -136,6 +136,9 @@ celerybeat.pid
 
 # Environments
 .env
+.env.local
+.env.production
+.env.db
 .envrc
 .venv
 env/
@@ -211,6 +214,12 @@ node_modules/
 .npm/
 .pnpm-store/
 .yarn/
+**/.env.local
+**/.env.production
+**/.env.db
+!**/.env.local.example
+!**/.env.production.example
+!**/.env.db.example
 
 # Local OS / editor files
 .DS_Store
