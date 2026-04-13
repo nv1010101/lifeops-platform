@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field, ValidationError
+from pydantic import AliasChoices, Field, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,7 +19,10 @@ class Settings(BaseSettings):
     app_base_url: str = Field(min_length=1, validation_alias="APP_BASE_URL")
     app_version: str = Field(default="0.1.0", validation_alias="APP_VERSION")
     database_url: str = Field(min_length=1, validation_alias="DATABASE_URL")
-    jwt_secret: str = Field(min_length=1, validation_alias="JWT_SECRET")
+    session_secret: str = Field(
+        min_length=1,
+        validation_alias=AliasChoices("SESSION_SECRET", "JWT_SECRET"),
+    )
     default_locale: str = Field(default="en", validation_alias="DEFAULT_LOCALE")
     default_timezone: str = Field(default="UTC", validation_alias="DEFAULT_TIMEZONE")
 

@@ -8,6 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.auth.service import SESSION_COOKIE_NAME, SESSION_COOKIE_PATH, SESSION_COOKIE_SAMESITE
 from app.middleware.context import attach_context_headers, get_request_context_from_request
 
 logger = logging.getLogger(__name__)
@@ -43,6 +44,18 @@ DEFAULT_MESSAGES_BY_STATUS: dict[int, str] = {
 }
 
 
+class ApplicationHTTPException(StarletteHTTPException):
+    def __init__(
+        self,
+        status_code: int,
+        detail: str | None = None,
+        *,
+        clear_session_cookie: bool = False,
+    ) -> None:
+        super().__init__(status_code=status_code, detail=detail)
+        self.clear_session_cookie = clear_session_cookie
+
+
 def _get_error_code(status_code: int) -> str:
     return ERROR_CODES_BY_STATUS.get(status_code, "http_error")
 
@@ -58,10 +71,27 @@ def _extract_http_exception_message(exc: StarletteHTTPException) -> str:
 
 
 def _sanitize_validation_details(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def sanitize_value(value: Any) -> Any:
+        if value is None or isinstance(value, (bool, int, float, str)):
+            return value
+        if isinstance(value, list):
+            return [sanitize_value(item) for item in value]
+        if isinstance(value, tuple):
+            return [sanitize_value(item) for item in value]
+        if isinstance(value, dict):
+            return {key: sanitize_value(item) for key, item in value.items()}
+        return str(value)
+
     sanitized_errors: list[dict[str, Any]] = []
 
     for error in errors:
-        sanitized_errors.append({key: value for key, value in error.items() if key != "input"})
+        sanitized_errors.append(
+            {
+                key: sanitize_value(value)
+                for key, value in error.items()
+                if key != "input"
+            }
+        )
 
     return sanitized_errors
 
@@ -108,11 +138,20 @@ def register_exception_handlers(app: FastAPI) -> None:
         request: Request,
         exc: StarletteHTTPException,
     ) -> JSONResponse:
-        return build_error_response(
+        response = build_error_response(
             request,
             exc.status_code,
             message=_extract_http_exception_message(exc),
         )
+        if isinstance(exc, ApplicationHTTPException) and exc.clear_session_cookie:
+            response.delete_cookie(
+                key=SESSION_COOKIE_NAME,
+                path=SESSION_COOKIE_PATH,
+                httponly=True,
+                samesite=SESSION_COOKIE_SAMESITE,
+                secure=True,
+            )
+        return response
 
     @app.exception_handler(Exception)
     async def handle_unexpected_exception(

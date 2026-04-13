@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
+from app.auth.router import router as auth_router
 from app.config import Settings, get_settings
 from app.errors import register_exception_handlers
 from app.middleware.context import register_request_context_middleware
@@ -22,5 +23,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = resolved_settings
     register_request_context_middleware(app)
     register_exception_handlers(app)
+    app.include_router(auth_router)
     app.include_router(health_router)
     return app

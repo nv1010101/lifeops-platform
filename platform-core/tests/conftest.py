@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator, Generator
 import getpass
 import os
 import subprocess
 import sys
 import uuid
+from collections.abc import AsyncGenerator, Generator
 
 import asyncpg
 import pytest
@@ -15,12 +15,12 @@ from fastapi.testclient import TestClient
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.auth.dependencies import CurrentUserDependency
 from app.config import Settings, get_settings
 from app.database import close_database_engine, resolve_async_database_url
 from app.dependencies import RequestContextDependency
 from app.main import create_app
 from app.model_registry import load_all_models
-
 
 TESTS_DIR = os.path.dirname(__file__)
 PROJECT_ROOT = os.path.dirname(TESTS_DIR)
@@ -33,7 +33,7 @@ def build_test_settings(*, database_url: str) -> Settings:
         app_env="test",
         app_base_url="http://testserver",
         database_url=database_url,
-        jwt_secret="test-secret",
+        session_secret="test-session-secret",
     )
 
 
@@ -97,8 +97,32 @@ async def db_settings(database_url: str) -> Settings:
 
 
 @pytest_asyncio.fixture
-async def db_client(db_settings: Settings) -> AsyncGenerator[TestClient, None]:
+async def db_client(
+    db_settings: Settings,
+    alembic_env: dict[str, str],
+) -> AsyncGenerator[TestClient, None]:
+    upgrade_process = subprocess.run(
+        [sys.executable, "-m", "alembic", "-c", "alembic.ini", "upgrade", "head"],
+        cwd=PROJECT_ROOT,
+        env=alembic_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if upgrade_process.returncode != 0:
+        pytest.fail(upgrade_process.stderr or upgrade_process.stdout)
+
     app = create_app(settings=db_settings)
+    router = APIRouter()
+
+    @router.get("/test/protected")
+    async def read_protected(current_user: CurrentUserDependency) -> dict[str, str]:
+        return {
+            "user_id": str(current_user.id),
+            "email": current_user.email,
+        }
+
+    app.include_router(router)
 
     with TestClient(app, raise_server_exceptions=False) as test_client:
         yield test_client
@@ -172,7 +196,7 @@ async def alembic_env(database_url: str) -> dict[str, str]:
     env = os.environ.copy()
     env["APP_ENV"] = "test"
     env["APP_BASE_URL"] = "http://testserver"
-    env["JWT_SECRET"] = "test-secret"
+    env["SESSION_SECRET"] = "test-session-secret"
     env["DATABASE_URL"] = database_url
     return env
 

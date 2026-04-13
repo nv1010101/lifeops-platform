@@ -3,9 +3,15 @@ from __future__ import annotations
 import uuid
 from collections.abc import AsyncIterator
 
+from fastapi import Request
 from sqlalchemy import MetaData
 from sqlalchemy.engine import make_url
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from app.config import Settings, get_settings
@@ -63,10 +69,17 @@ async def close_database_engine() -> None:
         AsyncSessionLocal.configure(bind=None)
 
 
-async def get_db() -> AsyncIterator[AsyncSession]:
+async def get_db(request: Request) -> AsyncIterator[AsyncSession]:
+    settings = request.app.state.settings
     session_factory = AsyncSessionLocal
-    if session_factory.kw.get("bind") is None:
-        get_engine()
+    current_bind = session_factory.kw.get("bind")
+    resolved_database_url = resolve_async_database_url(settings.database_url)
+
+    if current_bind is None:
+        get_engine(settings)
+    elif current_bind.url.render_as_string(hide_password=False) != resolved_database_url:
+        await close_database_engine()
+        get_engine(settings)
 
     async with session_factory() as session:
         try:
