@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 VENV_DIR="${PROJECT_ROOT}/.venv"
 PYTHON_BIN="${PYTHON_BIN:-python3.12}"
+DEPS_MARKER="${VENV_DIR}/.deps-installed"
 START_TS="$(date +%s)"
 
 print_section() {
@@ -30,7 +31,7 @@ finish() {
     print_section "Done"
     print_kv "status" "failed"
     print_kv "duration" "${elapsed}s"
-    print_kv "hint" "rerun with explicit pytest args if you want a narrower scope"
+    print_kv "hint" "inspect the pytest output above"
   fi
 
   exit "$exit_code"
@@ -58,10 +59,11 @@ fi
 # shellcheck disable=SC1091
 source "${VENV_DIR}/bin/activate"
 
-if [[ ! -x "${VENV_DIR}/bin/pytest" ]]; then
+if [[ ! -x "${VENV_DIR}/bin/pytest" || ! -f "${DEPS_MARKER}" || "${PROJECT_ROOT}/pyproject.toml" -nt "${DEPS_MARKER}" ]]; then
   print_section "Dependencies"
   echo "Installing project and test dependencies"
   pip install -e '.[dev]'
+  touch "${DEPS_MARKER}"
 fi
 
 cd "${PROJECT_ROOT}"

@@ -6,14 +6,12 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import Base
-from app.model_registry import load_all_models
 
 ModelT = TypeVar("ModelT", bound=Base)
 
 
 class BaseRepository(Generic[ModelT]):
     def __init__(self, session: AsyncSession, model_type: type[ModelT]) -> None:
-        load_all_models()
         self.session = session
         self.model_type = model_type
 

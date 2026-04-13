@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Generator
+from collections.abc import AsyncGenerator, Generator
 import getpass
 import os
 import subprocess
@@ -19,18 +19,20 @@ from app.config import Settings, get_settings
 from app.database import close_database_engine, resolve_async_database_url
 from app.dependencies import RequestContextDependency
 from app.main import create_app
+from app.model_registry import load_all_models
 
 
 TESTS_DIR = os.path.dirname(__file__)
 PROJECT_ROOT = os.path.dirname(TESTS_DIR)
+NO_DB_DATABASE_URL = "postgresql+asyncpg://unused:unused@127.0.0.1:1/lifeops_unused"
 
 
-def build_test_settings() -> Settings:
+def build_test_settings(*, database_url: str) -> Settings:
     return Settings(
         _env_file=None,
         app_env="test",
         app_base_url="http://testserver",
-        database_url=_build_test_database_url("lifeops_test"),
+        database_url=database_url,
         jwt_secret="test-secret",
     )
 
@@ -44,7 +46,12 @@ def clear_settings_cache() -> Generator[None, None, None]:
 
 @pytest.fixture
 def settings() -> Settings:
-    return build_test_settings()
+    return build_test_settings(database_url=NO_DB_DATABASE_URL)
+
+
+@pytest.fixture(autouse=True)
+def ensure_models_loaded() -> None:
+    load_all_models()
 
 
 @pytest.fixture
@@ -79,6 +86,19 @@ def client(settings: Settings) -> Generator[TestClient, None, None]:
         raise RuntimeError("boom")
 
     app.include_router(router)
+
+    with TestClient(app, raise_server_exceptions=False) as test_client:
+        yield test_client
+
+
+@pytest_asyncio.fixture
+async def db_settings(database_url: str) -> Settings:
+    return build_test_settings(database_url=database_url)
+
+
+@pytest_asyncio.fixture
+async def db_client(db_settings: Settings) -> AsyncGenerator[TestClient, None]:
+    app = create_app(settings=db_settings)
 
     with TestClient(app, raise_server_exceptions=False) as test_client:
         yield test_client
@@ -137,7 +157,7 @@ async def _drop_database(database_name: str) -> None:
 
 
 @pytest_asyncio.fixture
-async def database_url() -> Generator[str, None, None]:
+async def database_url() -> AsyncGenerator[str, None]:
     database_name = f"lifeops_test_{uuid.uuid4().hex}"
     created_database_url = await _create_database(database_name)
     try:
@@ -147,8 +167,8 @@ async def database_url() -> Generator[str, None, None]:
         await _drop_database(database_name)
 
 
-@pytest.fixture
-def alembic_env(database_url: str) -> dict[str, str]:
+@pytest_asyncio.fixture
+async def alembic_env(database_url: str) -> dict[str, str]:
     env = os.environ.copy()
     env["APP_ENV"] = "test"
     env["APP_BASE_URL"] = "http://testserver"
@@ -173,7 +193,10 @@ def alembic_runner() -> callable:
 
 
 @pytest_asyncio.fixture
-async def migrated_session(database_url: str, alembic_env: dict[str, str]) -> Generator[AsyncSession, None, None]:
+async def migrated_session(
+    database_url: str,
+    alembic_env: dict[str, str],
+) -> AsyncGenerator[AsyncSession, None]:
     upgrade_process = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", "alembic.ini", "upgrade", "head"],
         cwd=PROJECT_ROOT,

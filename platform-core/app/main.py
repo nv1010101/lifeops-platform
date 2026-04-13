@@ -5,11 +5,13 @@ from fastapi import FastAPI
 from app.config import Settings, get_settings
 from app.errors import register_exception_handlers
 from app.middleware.context import register_request_context_middleware
+from app.model_registry import load_all_models
 from app.routers.health import router as health_router
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved_settings = settings or get_settings()
+    load_all_models()
 
     app = FastAPI(
         title=resolved_settings.app_name,

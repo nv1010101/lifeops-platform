@@ -17,7 +17,7 @@ REQUIRED_TABLES = {
 }
 
 
-def test_alembic_upgrade_head_applies_cleanly_on_fresh_database(alembic_runner, alembic_env, database_url) -> None:
+async def test_alembic_upgrade_head_applies_cleanly_on_fresh_database(alembic_runner, alembic_env) -> None:
     first_upgrade = alembic_runner("upgrade", "head", env=alembic_env)
     assert first_upgrade.returncode == 0, first_upgrade.stderr or first_upgrade.stdout
 
@@ -25,7 +25,7 @@ def test_alembic_upgrade_head_applies_cleanly_on_fresh_database(alembic_runner, 
     assert second_upgrade.returncode == 0, second_upgrade.stderr or second_upgrade.stdout
 
 
-def test_alembic_downgrade_and_reupgrade_succeeds(alembic_runner, alembic_env) -> None:
+async def test_alembic_downgrade_and_reupgrade_succeeds(alembic_runner, alembic_env) -> None:
     upgrade = alembic_runner("upgrade", "head", env=alembic_env)
     assert upgrade.returncode == 0, upgrade.stderr or upgrade.stdout
 
