@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: lifeops-platform-core
     env_file:
-      - ./platform-core/.env.production
+      - ./platform-core/.env
     restart: unless-stopped
     ports:
       - "127.0.0.1:8000:8000"
@@ -16,7 +16,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "python -c \"import json, urllib.request; response = urllib.request.urlopen('http://127.0.0.1:8000/health'); assert json.loads(response.read()) == {'status': 'ok'}\"",
+          "python -c \"import json, urllib.request; response = urllib.request.urlopen('http://127.0.0.1:8000/health'); payload = json.loads(response.read()); assert payload['status'] == 'ok'; assert 'env' in payload\"",
         ]
       interval: 15s
       timeout: 5s
