@@ -8,6 +8,7 @@ from app.errors import register_exception_handlers
 from app.middleware.context import register_request_context_middleware
 from app.model_registry import load_all_models
 from app.routers.health import router as health_router
+from app.spaces.router import router as spaces_router
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -25,4 +26,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_exception_handlers(app)
     app.include_router(auth_router)
     app.include_router(health_router)
+    app.include_router(spaces_router)
     return app

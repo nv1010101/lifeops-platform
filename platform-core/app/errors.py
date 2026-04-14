@@ -50,9 +50,13 @@ class ApplicationHTTPException(StarletteHTTPException):
         status_code: int,
         detail: str | None = None,
         *,
+        code: str | None = None,
+        details: Any = None,
         clear_session_cookie: bool = False,
     ) -> None:
         super().__init__(status_code=status_code, detail=detail)
+        self.code = code
+        self.details = details
         self.clear_session_cookie = clear_session_cookie
 
 
@@ -138,10 +142,14 @@ def register_exception_handlers(app: FastAPI) -> None:
         request: Request,
         exc: StarletteHTTPException,
     ) -> JSONResponse:
+        code = exc.code if isinstance(exc, ApplicationHTTPException) else None
+        details = exc.details if isinstance(exc, ApplicationHTTPException) else None
         response = build_error_response(
             request,
             exc.status_code,
+            code=code,
             message=_extract_http_exception_message(exc),
+            details=details,
         )
         if isinstance(exc, ApplicationHTTPException) and exc.clear_session_cookie:
             response.delete_cookie(
