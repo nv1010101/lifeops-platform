@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     )
     default_locale: str = Field(default="en", validation_alias="DEFAULT_LOCALE")
     default_timezone: str = Field(default="UTC", validation_alias="DEFAULT_TIMEZONE")
+    modules_config: str | None = Field(default=None, validation_alias="MODULES_CONFIG")
 
 
 @lru_cache(maxsize=1)
