@@ -2,12 +2,17 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
+from app.auth.router import router as auth_router
 from app.config import Settings, get_settings
+from app.errors import register_exception_handlers
+from app.middleware.context import register_request_context_middleware
+from app.model_registry import load_all_models
 from app.routers.health import router as health_router
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved_settings = settings or get_settings()
+    load_all_models()
 
     app = FastAPI(
         title=resolved_settings.app_name,
@@ -16,5 +21,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redoc_url=None,
     )
     app.state.settings = resolved_settings
+    register_request_context_middleware(app)
+    register_exception_handlers(app)
+    app.include_router(auth_router)
     app.include_router(health_router)
     return app

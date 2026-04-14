@@ -40,7 +40,8 @@ No business logic is implemented yet.
 2. Copy the example environment file and fill in values:
 
    ```bash
-   cp .env.local.example .env.local
+   cp .env.example .env
+   cp .env.db.example .env.db
    ```
 
 3. Install dependencies:
@@ -76,7 +77,7 @@ No business logic is implemented yet.
 2. Copy the example environment file and fill in values:
 
    ```bash
-   cp .env.local.example .env.local
+   cp .env.example .env
    ```
 
 3. Start the development server:
@@ -114,11 +115,11 @@ No business logic is implemented yet.
 2. Create the runtime environment files:
 
    ```bash
-   cp platform-core/.env.production.example platform-core/.env.production
+   cp platform-core/.env.example platform-core/.env
    cp platform-core/.env.db.example platform-core/.env.db
    ```
 
-3. Fill in real values in `platform-core/.env.production` and `platform-core/.env.db`.
+3. Fill in real values in `platform-core/.env` and `platform-core/.env.db`.
 
 4. Build the frontend bundle:
 
@@ -184,7 +185,7 @@ docker compose ps
 Expected health response:
 
 ```json
-{"status":"ok"}
+{"status":"ok","env":"production"}
 ```
 
 ## Public docs

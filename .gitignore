@@ -136,8 +136,6 @@ celerybeat.pid
 
 # Environments
 .env
-.env.local
-.env.production
 .env.db
 .envrc
 .venv
@@ -216,9 +214,9 @@ node_modules/
 .yarn/
 **/.env.local
 **/.env.production
+**/.env
 **/.env.db
-!**/.env.local.example
-!**/.env.production.example
+!**/.env.example
 !**/.env.db.example
 
 # Local OS / editor files
