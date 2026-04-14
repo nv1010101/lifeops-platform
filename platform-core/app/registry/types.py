@@ -25,3 +25,12 @@ class RegistryModuleListItem:
     display_name: str
     api_version: str
     status: ModuleHealthStatus
+
+
+@dataclass(frozen=True, slots=True)
+class RegistryModuleRuntime:
+    module_id: str
+    base_url: str
+    internal_bearer_token: str
+    timeout_seconds: int
+    status: ModuleHealthStatus

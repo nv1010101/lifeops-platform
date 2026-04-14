@@ -59,14 +59,14 @@ fi
 # shellcheck disable=SC1091
 source "${VENV_DIR}/bin/activate"
 
+cd "${PROJECT_ROOT}"
+
 if [[ ! -x "${VENV_DIR}/bin/pytest" || ! -f "${DEPS_MARKER}" || "${PROJECT_ROOT}/pyproject.toml" -nt "${DEPS_MARKER}" ]]; then
   print_section "Dependencies"
   echo "Installing project and test dependencies"
   pip install -e '.[dev]'
   touch "${DEPS_MARKER}"
 fi
-
-cd "${PROJECT_ROOT}"
 
 print_section "Versions"
 print_kv "python" "$(python --version 2>&1)"

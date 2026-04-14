@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.registry.models import ModuleConfig, ModuleHealth, ModuleHealthStatus, PlatformModule
-from app.registry.types import RegistryModuleConfig, RegistryModuleListItem
+from app.registry.types import RegistryModuleConfig, RegistryModuleListItem, RegistryModuleRuntime
 
 
 class RegistryRepository:
@@ -92,3 +92,36 @@ class RegistryRepository:
             )
             for module_id, display_name, api_version, status in rows
         ]
+
+    async def get_module_runtime(self, module_id: str) -> RegistryModuleRuntime | None:
+        row = (
+            await self.session.execute(
+                select(
+                    PlatformModule.module_id,
+                    PlatformModule.base_url,
+                    ModuleConfig.internal_bearer_token,
+                    ModuleConfig.timeout_seconds,
+                    ModuleHealth.status,
+                )
+                .select_from(PlatformModule)
+                .join(ModuleConfig, ModuleConfig.module_id == PlatformModule.id)
+                .outerjoin(ModuleHealth, ModuleHealth.module_id == PlatformModule.id)
+                .where(
+                    PlatformModule.module_id == module_id,
+                    PlatformModule.is_active.is_(True),
+                )
+                .limit(1)
+            )
+        ).one_or_none()
+
+        if row is None:
+            return None
+
+        module_status = row.status or ModuleHealthStatus.HEALTHY
+        return RegistryModuleRuntime(
+            module_id=row.module_id,
+            base_url=row.base_url,
+            internal_bearer_token=row.internal_bearer_token,
+            timeout_seconds=row.timeout_seconds,
+            status=module_status,
+        )
