@@ -6,11 +6,12 @@ import subprocess
 import sys
 import uuid
 from collections.abc import AsyncGenerator, Generator
+from typing import Annotated
 
 import asyncpg
 import pytest
 import pytest_asyncio
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.testclient import TestClient
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -20,11 +21,15 @@ from app.config import Settings, get_settings
 from app.database import close_database_engine, resolve_async_database_url
 from app.dependencies import RequestContextDependency
 from app.main import create_app
+from app.memberships.dependencies import require_role
+from app.memberships.models import Membership
 from app.model_registry import load_all_models
+from app.spaces.dependencies import CurrentSpaceDependency
 
 TESTS_DIR = os.path.dirname(__file__)
 PROJECT_ROOT = os.path.dirname(TESTS_DIR)
 NO_DB_DATABASE_URL = "postgresql+asyncpg://unused:unused@127.0.0.1:1/lifeops_unused"
+MemberWriteDependency = Annotated[Membership, Depends(require_role("member"))]
 
 
 def build_test_settings(*, database_url: str) -> Settings:
@@ -121,6 +126,21 @@ async def db_client(
             "user_id": str(current_user.id),
             "email": current_user.email,
         }
+
+    @router.get("/test/current-space")
+    async def read_current_space(current_space: CurrentSpaceDependency) -> dict[str, str]:
+        space, membership = current_space
+        return {
+            "space_id": str(space.id),
+            "role": membership.role.value,
+        }
+
+    @router.post("/test/current-space/write")
+    async def write_in_current_space(
+        _: CurrentSpaceDependency,
+        __: MemberWriteDependency,
+    ) -> dict[str, str]:
+        return {"status": "ok"}
 
     app.include_router(router)
 
